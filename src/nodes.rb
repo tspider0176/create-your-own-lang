@@ -35,6 +35,7 @@ class GetConstantNode < Struct.new(:name); end
 
 class SetConstantNode < Struct.new(:name, :value); end
 
+# ローアカル変数用
 class GetLocalNode < Struct.new(:name); end
 
 class SetLocalNode < Struct.new(:name, :value); end
