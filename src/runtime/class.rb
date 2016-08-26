@@ -1,3 +1,5 @@
+require_relative './object'
+
 class AwesomeClass < AwesomeObject
   # Classes are objects in Awecome so they inherit from AwesomeObject
 
@@ -18,7 +20,7 @@ class AwesomeClass < AwesomeObject
 
   # Helper method to define a method on this class from Ruby.
   def def(name, &block)
-    @runtime_mathods[name.to_s] = block
+    @runtime_methods[name.to_s] = block
   end
 
   # Create a new instance of this class

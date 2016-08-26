@@ -1,3 +1,6 @@
+require_relative './class'
+require_relative './context'
+
 Constants = {}
 
 Constants["Class"] = AwesomeClass.new
