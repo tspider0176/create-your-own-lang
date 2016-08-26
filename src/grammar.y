@@ -1,5 +1,8 @@
+# As mention earlier in this chapter, parsing rules are defined inside a grammar.
 class Parser
 
+# We need to tell te parser what tokens to expext.
+# So each type of token profuced by our lexer needs to be declared here.
 token IF
 token DEF
 token CLASS
@@ -11,6 +14,10 @@ token IDENTIFIER
 token CONSTANT
 token INDENT DEDENT
 
+# Here is the Operator Precedence Table.
+# As resented before, it tells the parser in which order to parse expressions containing operators.
+# This table is based on the C and C++ Operator Precedence Table.
+# https://ja.wikipedia.org/wiki/CとC++の演算子#.E6.BC.94.E7.AE.97.E5.AD.90.E3.81.AE.E5.84.AA.E5.85.88.E9.A0.86.E4.BD.8D
 prechigh
   left  '.'
   right '!'
@@ -24,12 +31,35 @@ prechigh
   left  ','
 preclow
 
+# In the following rule section, we define the parsing rules.
+# All rules are declared using the following format:
+#  RuleName:
+#    OtherRule TOKEN AnotherRule       { result = Node.new}
+#  | OtherRule                         { ... }
+# In the action section (inside the {...} on the right), you can do the following:
+#  * Assign to result the calue returned by the rule, usually a node for the AST.
+#  * Use val[index of expression] to get the result of a matched expressions on the left.
 rule
+# Firts, parsers, are dumb, we need to explicitly tell it how to handle empty programs.
+# This is what the first rule does.
+# Note that everything between /* ... */ is a comment.
   Program:
     /* nothing */                      { result = Nodes.new([]) }
   | Expressions                        { result = val[0] }
   ;
 
+# Next, we define what a list of expressions is.
+# Simply put, it's series of expressions separated by a terminator (a new line or ; as defined later).
+# But once again, we need to explicitly define how to handle trailing and orphans line breaks (the last two lines).
+#
+# One very powerful trick we'll use to define variable rules
+# like this one (rules which can match any number of tokens) is left-recursion.
+# Which means we reference the rule itself, directly, on the left side *only*.
+# This is true for the current type of parser we're using (LR).
+# For other types of parsers like ANTLR (LL), it's the opposite, you can only use right-recursion.
+#
+# As you'll see below, the Expressions rule references Expressions itself.
+# In other words, a list of expressions can be another list of expressions followed by another expression.
   Expressions:
     Expression                         { result = Nodes.new(val) }
   | Expressions Terminator Expression  { result = val[0] << val[2] }
@@ -37,6 +67,7 @@ rule
   | Terminator                         { result = Nodes.new([]) }
   ;
 
+# Every type of expression supported by our language is defined here.
   Expression:
     Literal
   | Call
@@ -51,11 +82,20 @@ rule
   | '(' Expression ')'    { result = val[1] }
   ;
 
+# Notice how we implement support for parentheses using the previous rule.
+# '(' [Expression] ')' will force the parsing of [Expression] in its entirety first.
+# Parentheses will then be discarded leaving only the fully parsed expression.
+#
+# Terminators are tokens that can terminate an expression.
+# When using tokens to define rules,
+# we simply reference them by their type which we defined in the lexer.
   Terminator:
     NEWLINE
   | ";"
   ;
 
+# Literals are the hard-coded values inside the program.
+# If you want to add support for other literal types, such as arrays, or hashes, this it where you'd do it.
   Literal:
     NUMBER                        { result = NumberNode.new(val[0]) }
   | STRING                        { result = StringNode.new(val[0]) }
@@ -64,6 +104,11 @@ rule
   | NIL                           { result = NilNode.new }
   ;
 
+# Method call can take three forms:
+#  * Without a receiver (self is assumed): method(arguments).
+#  * With a receiver: receiver.method(arguments).
+#  * And a hint of syntactic sugar so that we can drop the () if no arguments are given: receiver.method.
+# Each one of those is handled by the following tule.
   Call:
     IDENTIFIER Arguments          { result = CallNode.new(nil, val[0], val[1]) }
   | Expression "." IDENTIFIER
@@ -81,6 +126,13 @@ rule
   | ArgList "," Expression        { result = val[0] << val[2] }
   ;
 
+# In our language, like in Ruby, operators are converted to method calls.
+# So
+# 1 + 2
+# will be converted to
+# 1.+(2).1
+# is the receiver of the + method call, passing 2 as an argument.
+# Operators need to be defined individually for the Operator Precedence Table to take again.
   Operator:
     Expression '||' Expression  { result = CallNode.new(val[0], val[1], [val[2]]) }
   | Expression '&&' Expression  { result = CallNode.new(val[0], val[1], [val[2]]) }
@@ -96,6 +148,7 @@ rule
   | Expression '/'  Expression  { result = CallNode.new(val[0], val[1], [val[2]]) }
   ;
 
+# Then we have rules for getting and setting values of constants and local variables.
   GetConstant:
     CONSTANT                      { result = GetConstantNode.new(val[0]) }
   ;
@@ -112,10 +165,19 @@ rule
     IDENTIFIER "=" Expression     { result = SetLocalNode.new(val[0], val[2]) }
   ;
 
+# Our language uses indentation to separate blocks of code.
+# But the lexer took care of all that complexity for us and wrapped all blocks in INDENT...DEDENT.
+# A block is simply an increment in indentation followed by some code and closing with an equivalent decrement in indentation.
+#
+# If you'd like to use curly brackets or end to delimit blocks instead, you'd simply need to modify this one rule.
+# You'll also need to remove the indentation logic from the lexer.
   Block:
     INDENT Expressions DEDENT     { result = val[1] }
   ;
 
+# The "def" keyword is used for defineing methods.
+# Once again we're introducint a bit of syntactic sugar here
+# to allow skipping the parentheses when there are no parameters.
   Def:
     DEF IDENTIFIER Block          { result = DefNode.new(val[1], [], val[2]) }
   | DEF IDENTIFIER
@@ -128,15 +190,20 @@ rule
   | ParamList "," IDENTIFIER      { result = val[0] << val[2] }
   ;
 
+# Class definition is similar to method definition.
+# Class names are also constant because they start with a capital letter.
   Class:
     CLASS CONSTANT Block          { result = ClassNode.new(val[1], val[2]) }
   ;
 
+# Finally, "if" is similar to "class" but receivers a "condition".
   If:
     IF Expression Block           { result = IfNode.new(val[1], val[2]) }
   ;
 end
 
+# The final code at the bottom of this Racc file will be put as-is in the generated Parser class.
+# You can put some code at the top ("header") and some inside the class ("inner").
 ---- header
   require_relative "lexer"
   require_relative "nodes"
