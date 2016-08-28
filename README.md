@@ -7,11 +7,11 @@ From:
 http://createyourproglang.com/
 
 ### Test
-On the project root directory:
 ```
 bundle install
 rbenv rehash
 ```
+On the project root directory:
 
 About lexer:
 ```
@@ -22,4 +22,9 @@ About parser:
 ```
 racc -o src/parser.rb src/grammar.y
 ruby test/parser_test.rb
+```
+
+About runtime:
+```
+ruby test/runtime_test.rb
 ```
