@@ -1,8 +1,11 @@
 require_relative './object'
 
-class AwesomeClass < AwesomeObject
-  # Classes are objects in Awecome so they inherit from AwesomeObject
+# Remember that in Awesome, everything is an object.
+# Even classes are instances of the "AwesomeClass" class.
+# "AwesomeClass"es hold the methods and can be instantiated via their "new" method.
 
+# Classes are objects in Awecome so they inherit from AwesomeObject
+class AwesomeClass < AwesomeObject
   attr_accessor :runtime_methods
 
   def initialize
